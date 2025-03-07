@@ -1,0 +1,151 @@
+---
+title: "Final"
+author: "Wongel Molla"
+output: html_document
+---
+library(tidyverse)
+black_st_louis <- read_csv("C:\\Users\\wonge\\Desktop\\Math assignment\\Final\\St. Louis ward level black.csv")
+white_st_louis <- read_csv("C:\\Users\\wonge\\Desktop\\Math assignment\\Final\\St. Louis Ward level white.csv")
+
+st_louis_black_white <- left_join(black_st_louis, white_st_louis, by = "Ward", suffix = c("_black", "_white"))
+
+#Calculate index of dissimilarity in St.louis 2010 census
+
+black_total_population <- sum(st_louis_black_white$`2010_black`)
+white_total_population <- sum(st_louis_black_white$`2010_white`)
+
+#Proportion of each race per ward
+ward_black_white_proportion <- st_louis_black_white %>%
+  mutate(ward_black_proportion = `2010_black` / black_total_population,
+         ward_white_proportion = `2010_white` / white_total_population)
+head(ward_black_white_proportion)
+
+#Calculate the absolute difference between the black and white proportions in each ward
+ward_absolute_difference <- ward_black_white_proportion %>%
+  mutate(absolute_difference = abs(ward_black_proportion - ward_white_proportion))
+head(ward_absolute_difference)
+
+#Calculate sum of absolute differences
+dissimilarity_index_st_louis <- sum(ward_absolute_difference$absolute_difference) / 2
+
+print(dissimilarity_index_st_louis)
+
+#A dissimilarity index of 0.5985796, approximately 60%, suggests that there is a significant level of residential segregation in St. Louis. About 60% of the back or white population would need to move to other wards to achieve integration.
+
+ggplot(ward_absolute_difference, aes(x = reorder(Ward,absolute_difference), #Sorts from least to most segregated wards
+                                     y = absolute_difference, fill = absolute_difference)) + #Fill color is the absolute difference value
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  scale_fill_gradient(low = "skyblue", high = "darkblue" ) + #The higher the level of segregation the darker the color
+  labs(title = "St. Louis: Ward Level Residential Segregation",
+       x = "Ward According to Level of Segregation",
+       y = "Absolute Difference in Racial Proportions") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 9)) +
+  geom_text(aes(label = round(absolute_difference, 3)), angle = 90, vjust = -1.5, size = 2)
+
+crime_st_louis <- read_csv("C:\\Users\\wonge\\Desktop\\Math assignment\\Final\\St. Louis Crime By Neighborhood 2010.csv")
+
+head(crime_st_louis)
+
+install.packages("sf")
+install.packages("tmap")
+library(sf)
+library(tmap)
+
+st_louis_neighborhood_shapefile <- st_read("C:\\Users\\wonge\\Desktop\\Math assignment\\Final\\Neighborhood_Boundaries.shp")
+st_louis_ward_shapefile <- st_read("C:\\Users\\wonge\\Desktop\\Math assignment\\Final\\WARDS_2010.shp")
+
+head(st_louis_neighborhood_shapefile)
+head(st_louis_ward_shapefile)
+
+colnames(st_louis_neighborhood_shapefile)
+colnames(st_louis_ward_shapefile)
+
+st_louis_joined <- st_join(st_louis_neighborhood_shapefile, st_louis_ward_shapefile, join = st_intersects)
+
+head(st_louis_joined)
+
+crime_st_louis <- crime_st_louis %>%
+  rename(NHD_NAME = Neighborhood,
+  )
+
+crime_st_louis <- crime_st_louis %>%
+  mutate( NHD_NAME = str_remove(NHD_NAME, "Neighborhood$"))
+
+st_louis_joined <- st_louis_joined %>%
+  mutate( NHD_NAME = str_remove(NHD_NAME, "Neighborhood$"))
+
+setdiff(st_louis_joined$NHD_NAME, crime_st_louis$NHD_NAME)
+
+crime_st_louis$NHD_NAME <- recode(crime_st_louis$NHD_NAME,
+                                  "Tiffany" = "Tiffany",                   
+                                  "Botanical Heights" = "Botanical Heights",
+                                  "Forest Park Southeast" = "Forest Park South East",        
+                                  "Hi Pointe" =  "Hi-Pointe",              
+                                  "Jeff-Vander-Lou" = "Jeff Vanderlou",    
+                                  "Wydown Skinker" = "Wydown Skinker",      
+                                  "Covenant Blu Grand Center" = "Covenant Blu-Grand Center",     
+                                  "Vandeventer" = "Vandeventer",           
+                                  "Visitation Park" = "Visitation Park",    
+                                  "The Ville" = "The Ville",               
+                                  "Academy" = "Academy",                  
+                                  "West End" = "West End",                 
+                                  "The Greater Ville" = "Greater Ville",  
+                                  "Fairground" = "Fairground",            
+                                  "Patch" = "Patch",               
+                                  "Carondelet" = "Carondelet",             
+                                  "Boulevard Heights" = "Boulevard Heights",    
+                                  "Princeton Heights" = "Princeton Heights",             
+                                  "St. Louis Hills" = "St. Louis Hills",               
+                                  "Bevo Mill" = "Bevo Mill",                     
+                                  "Southampton" = "Southampton",                   
+                                  "Benton Park West" = "Benton Park West",              
+                                  "Tower Grove South" = "Tower Grove South",             
+                                  "Benton Park" = "Benton Park",                   
+                                  "Tower Grove East" = "Tower Grove East",              
+                                  "Soulard" = "Soulard",                       
+                                  "Shaw" = "Shaw",                          
+                                  "Southwest Garden" = "Southwest Garden",              
+                                  "Peabody Darst Webbe" = "Peabody Darst Webbe",           
+                                  "The Hill" = "The Hill",                      
+                                  "The Gate District" = "The Gate District",             
+                                  "O'Fallon" = "O'Fallon",                      
+                                  "Penrose" = "Penrose",                       
+                                  "Wells Goodfellow" = "Wells Goodfellow",              
+                                  "Walnut Park East" = "Walnut Park East",              
+                                  "Cal-Bell Cemetary" = "Bellefontaine/Calvary Cemetery",
+                                  "Walnut Park West" = "Walnut Park West",              
+                                  "Baden" = "Baden",                   
+                                  "Riverview" = "Riverview",                     
+                                  "Skinker DeBaliviere" = "Skinker DeBaliviere",           
+                                  "Old North St. Louis" = "Old North St. Louis",           
+                                  "St. Louis Place" = "St. Louis Place")
+
+st_louis_crime_joined <- st_louis_joined %>% 
+  left_join(crime_st_louis, by = "NHD_NAME")
+
+st_louis_crime_joined <- st_louis_crime_joined %>%
+  mutate("Unmatched Neighborhood Missing Data" = is.na(`Total Crime`))
+
+
+
+st_louis_crime_joined_aggregate <- st_louis_crime_joined %>%
+  group_by(Ward) %>%
+  summarise(
+    `Total Crime` = sum(`Total Crime`, na.rm = TRUE),
+    geometry = st_union(geometry),
+    .groups = "drop")
+
+head(st_louis_crime_joined_aggregate)
+
+ward_absolute_difference$Ward <- ward_absolute_difference$Ward %>%
+  gsub("Ward", "", .) %>%
+  as.integer()
+
+ward_absolute_difference$segregation_index <- 0.5 * abs(ward_absolute_difference$ward_black_proportion - ward_absolute_difference$ward_white_proportion)
+
+st_louis_seg_crime_joined <- left_join(ward_absolute_difference, st_louis_crime_joined_aggregate, by = "Ward")
+
+head(st_louis_seg_crime_joined)
+
+st_louis_correlation_crime_segregation <- cor(st_louis_seg_crime_joined$segregation_index, st_louis_seg_crime_joined$`Total Crime`, use = "complete.obs") 
